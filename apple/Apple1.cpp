@@ -1,10 +1,19 @@
 #include "Apple1.h"
 #include <fstream>
 #include <iostream>
-#include <Windows.h>
+#ifdef _WIN32
+    #include <Windows.h>
+#elif defined(__linux__)
+    #include <unistd.h>
+    #include <sys/ioctl.h>
+#endif
 #include <ctime>
 #include <chrono>
 #include <thread>
+
+#ifdef __linux__
+    void moveCursor()
+#endif
 
 Emu::Apple1::Apple1()
     : m_cursorPos{ 0, 0 }, m_stdInHandle(NULL), m_stdOutHandle(NULL), m_running(true), m_onStartup(true), m_throttled(true)
@@ -69,16 +78,12 @@ Emu::Apple1::Apple1()
 
 int Emu::Apple1::run()
 {
-    LARGE_INTEGER frequency, start, now, displayFlagStart, cpuStart, displayFrequency, cpuFrequency;
+    std::chrono::steady_clock::time_point start, displayFlagStart, cpuStart;
     Byte clockCount = 0;
     bool cursorFlag = false;
 
-    QueryPerformanceFrequency(&displayFrequency);
-    QueryPerformanceFrequency(&frequency);
-    QueryPerformanceFrequency(&cpuFrequency);
-    QueryPerformanceCounter(&start);
-    QueryPerformanceCounter(&displayFlagStart);
-    QueryPerformanceCounter(&cpuStart);
+    start = std::chrono::high_resolution_clock::now();
+    cpuStart = displayFlagStart = start;
 
     while (m_running)
     {
@@ -97,36 +102,35 @@ int Emu::Apple1::run()
         this->mmioRegisterMonitor();
         clockCount += m_cpu.getCycles();
 
-
+        auto now = std::chrono::high_resolution_clock::now();
         // Do timer stuff for Flashing the cursor and throttling the display rate
-        QueryPerformanceCounter(&now);
-        double elapsed = static_cast<double>(now.QuadPart - start.QuadPart) / frequency.QuadPart;
-        double displayFlagElapsed = static_cast<double>(now.QuadPart - displayFlagStart.QuadPart) / displayFrequency.QuadPart;
-        double cpuElapsed = static_cast<double>(now.QuadPart - cpuStart.QuadPart) / cpuFrequency.QuadPart;
+        auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - start);
+        auto displayFlagElapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - displayFlagStart);
+        auto cpuElapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - cpuStart);
 
         // The bottlneck of the Apple 1 was the monitor, so we can emulate the speed of monitor by constantly flipping the last bit in the display output register
         // This is how the Apple 1 monitor actually worked too so this is good emulation. F4 toggles this on and off. If off, we need to keep that bit cleared
         if (m_throttled)
         {   // the display ready flag bit should be ready about 10x a minute, so flip it every 5 hundreths of a second
-            if (displayFlagElapsed > .03)
+            if (displayFlagElapsed.count() > 50)
             {
                 Bits<Byte>::ToggleBit(m_cpu.getBus()[DISPLAY_OUTPUT_REGISTER], LastBit<Byte>);  // Toggle the last bit of the display output register. This controls whether the monitor is available or not
-                QueryPerformanceCounter(&displayFlagStart);
+                displayFlagStart = std::chrono::high_resolution_clock::now();
             }
             // throttle the cpu to approximately 1000 clock cycles per second, or 100 cycles per .1 seconds
-            if (cpuElapsed > .2)
+            if (cpuElapsed.count() > 200)
             {
                 if (clockCount > 200)
                     std::this_thread::sleep_for(std::chrono::milliseconds((clockCount - 200)));
                 clockCount = 0;
-                QueryPerformanceCounter(&cpuStart);
+                cpuStart = std::chrono::high_resolution_clock::now();
             }
         }
         else
             Bits<Byte>::ClearBit(m_cpu.getBus()[DISPLAY_OUTPUT_REGISTER], LastBit<Byte>);
 
 
-        if (elapsed >= 0.5) // half a second has passed
+        if (elapsed.count() >= 500) // half a second has passed
         {
             if (cursorFlag) std::cout << ' ';
             else            std::cout << "@";
@@ -134,7 +138,7 @@ int Emu::Apple1::run()
             SetConsoleCursorPosition(m_stdOutHandle, m_cursorPos);
 
             // Reset the start time.
-            QueryPerformanceCounter(&start);
+            start = std::chrono::high_resolution_clock::now();
         }
     }
 
@@ -152,7 +156,7 @@ char Emu::Apple1::readKeyboard()
         ReadConsoleInput(m_stdInHandle, &ir, 1, &readCount);
         CHAR key = ir.Event.KeyEvent.uChar.AsciiChar & 0x7F;
         WORD vKey = ir.Event.KeyEvent.wVirtualKeyCode;
-        if (ir.EventType == KEY_EVENT && ir.Event.KeyEvent.bKeyDown)
+        if (ir.EventType == KEY_EVENT and ir.Event.KeyEvent.bKeyDown)
         {
             switch (vKey)                                                                   // Clear screen button
             {
