@@ -71,21 +71,21 @@ namespace Emu {
 	class emu6502
 	{
 	public:
-											emu6502					();																	// Initialization
+										emu6502					();																	// Initialization
 
 // The main functionality
 					void					reset					();																	// Reset the state of the processor (set program counter to address at RESET_VECTOR
 
 					void					clock					();																	// Executes an instruction while counting down the clock cycles
 
-					void					irq						();																	// Interrupt request
+					void					irq					();																	// Interrupt request
 
-					void					nmi						();																	// Non maskable interrupt
+					void					nmi					();																	// Non maskable interrupt
 
-					size_t					fetch_and_execute		();																	// Fetch the opcode and memory mode value and execute it
+					size_t					fetch_and_execute			();																	// Fetch the opcode and memory mode value and execute it
 
 					void					busWrite				(const Word& addr, 
-																	 const Byte& val);
+															 const Byte& val);
 
 					Byte					busRead					(const Word& addr);
 
@@ -94,13 +94,13 @@ namespace Emu {
 // Mostly for the menu output
 					Byte*					getBus					();
 
-		const		CPU&					getCPU					()										const;						// Get a constant reference to the cpu
+		const			CPU&					getCPU					()										const;						// Get a constant reference to the cpu
 
-					std::string_view		getInstructionName		()										const;						// Get the instruction mnemonic
+					std::string_view			getInstructionName			()										const;						// Get the instruction mnemonic
 
-					int						getAddressValue			()										const;						// Get m_addrVal. Usually contains a memory address addressing mode was IMM
+					int					getAddressValue				()										const;						// Get m_addrVal. Usually contains a memory address addressing mode was IMM
 
-					int						getAddressRelative		()										const;						// If the addressming mode requires a relative offset like for BNE it's stored at m_addrRel
+					int					getAddressRelative			()										const;						// If the addressming mode requires a relative offset like for BNE it's stored at m_addrRel
 
 					Byte					getCycles				()										const;						// Gets the number of cycles for that instruction and addressing mode  plus branches and pages boundary crossings
 
@@ -109,47 +109,46 @@ namespace Emu {
 // More so just for debugging right now
 					Byte					fetch					();																	// Used for disassembly. Fetches a single byte from m_bus[m_cpu.p++]
 
-					void					setProgramCounter		(const Word& p = USER_PROGRAM);												// explictly sets the program counter
+					void					setProgramCounter			(const Word& p = USER_PROGRAM);												// explictly sets the program counter
 
-					int						loadProgram				(const char* fname,													// Loads a text file of hexadecimal machine code
-																	 const Word& addr = USER_PROGRAM);
+					int					loadProgram				(const char* fname,													// Loads a text file of hexadecimal machine code
+															 const Word& addr = USER_PROGRAM);
 
-					int						loadProgram2			(const char* fname,													// loads a text file of hexadecimal predicated the address is should be at e.g. E000: AA 58 E0 etc....
-																	 const Word& addr = USER_PROGRAM);
+					int					loadProgram2				(const char* fname,													// loads a text file of hexadecimal predicated the address is should be at e.g. E000: AA 58 E0 etc....
+															const Word& addr = USER_PROGRAM);
 
-					int						loadProgramHex			(const char* fname,
-																	 const Word& addr = USER_PROGRAM);
+					int					loadProgramHex				(const char* fname,
+															 const Word& addr = USER_PROGRAM);
 
-					int						denatureHexText			(const char* fname, 
-																	 const char* fname_new);											// Takes a text file containing hexadecimal instructions and removing any addresses that may start the line, as well as delimiters and "0x" e.g. E0000: 0xA2, 0x08, 0x5D, ....
+					int					denatureHexText				(const char* fname, 
+															 const char* fname_new);											// Takes a text file containing hexadecimal instructions and removing any addresses that may start the line, as well as delimiters and "0x" e.g. E0000: 0xA2, 0x08, 0x5D, ....
 
-					void					disassembleText			(const char* fname);												// Disassembles a text file of machine code in assembly. Saved in a file asm.asm
+					void					disassembleText				(const char* fname);												// Disassembles a text file of machine code in assembly. Saved in a file asm.asm
 
 	// Output operations
-					void					printMemoryRange		(const size_t& start, 
-																	 const size_t& end)						const;
+					void					printMemoryRange			(const size_t& start, 
+															 const size_t& end)								const;
 
 	/* Define an Instruction strcture */
 	private:
 		struct Instruction
 		{
-			std::string_view mnemonic;			// the name of the opcode
-			Byte(emu6502::* exec)() = nullptr;	// function pointer to the instruction
-			Byte(emu6502::* addr)() = nullptr;	// function pointer to the address mode
-			Byte cycles = 0;					// the amount of the cycles
+			std::string_view mnemonic;					// the name of the opcode
+			Byte(emu6502::* exec)() = nullptr;				// function pointer to the instruction
+			Byte(emu6502::* addr)() = nullptr;				// function pointer to the address mode
+			Byte cycles = 0;						// the amount of the cycles
 		};
 //
 //
 /* Member variables to emu6502 */
 	private:
-		std::vector<Instruction> m_lookup;			// Table of opcodes correctly indexed to their hex value
-		CPU                      m_cpu;				// CPU
-		Instruction              m_instruction;		// keep track of the current instruction, mostly for the cycles variable but also to check addressing mode for m_addrVal
-		Bits<DWord>				 m_addrVal;			// Used to get the value for the instruction. It is the next byte if it's IMM otherwise it's an address
-		Bits<Byte>				 m_addrRel;			// Used for relative offsets
-		Bits<Byte>				 m_value;			// the value at a memory address after calling an addressing function
-		Byte					 m_bus[64 * 1024];	// Memory of size 0xFFFF
-		Address_Mode			 m_lastAddressMode; // Keep track of the last address mode used for debugging purposes
+		std::vector<Instruction> m_lookup;					// Table of opcodes correctly indexed to their hex value
+		CPU                      m_cpu;						// CPU
+		Instruction              m_instruction;					// keep track of the current instruction, mostly for the cycles variable but also to check addressing mode for m_addrVal
+		Bits<DWord>		 m_addrVal;					// Used to get the value for the instruction. It is the next byte if it's IMM otherwise it's an address
+		Bits<Byte>		 m_addrRel;					// Used for relative offsets
+		Byte			 m_bus[0xFFFF];					// Memory of size 0xFFFF
+		Address_Mode		 m_lastAddressMode; 				// Keep track of the last address mode used for debugging purposes
 
 /* Private helper functions to check the status of flags and clear or set them accordingly */
 	private:
