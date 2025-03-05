@@ -1,6 +1,8 @@
 #pragma once
-#include "emu6502.h"
-#include <Windows.h>
+
+#ifdef _WIN32
+	#include <Windows.h>
+#endif
 
 #define KEYBOARD_INPUT_REGISTER 0xD010
 #define KEYBOARD_CNTRL_REGISTER 0xD011
@@ -21,20 +23,24 @@
 #define TAB '\t'
 #define BS  0X08
 
-#define LOG_FILE "logs/log.dat"
+#define LOG_FILE  "logs/log.dat"
+#define SAVE_FILE "save.dat"
 
-//namespace Apple1_Title
-//{
-//	const char* A1_LINE1 = "      /\\        ---   ---  |      ----  \n";
-//	const char* A1_LINE2 = "     /  \\      |   \\ |   \\ |     |      \n";
-//	const char* A1_LINE3 = "    /    \\     |---/ |---/ |     |      \n";
-//	const char* A1_LINE4 = "   /------\\    |     |     |     |---   \n";
-//	const char* A1_LINE5 = "  /        \\   |     |     |     |      \n";
-//	const char* A1_LINE6 = " /          \\  |     |     |     |      \n";
-//	const char* A1_LINE7 = "/            \\ |     |     |____ |____  \n";
-//	const char* A1_LINE8 = "                  ONE                   \n";
-//	const char* A1_LINE9 = "0000000000000000000000000000000000000000\n";
-//}
+#define BASIC_ROM  "roms/basic.bin"
+#define WOZMON_ROM "roms/wozmon1.txt"
+#define WOZACI_ROM "roms/wozaci1.txt"
+#define A1ASM_ROM  "roms/a1asm.txt"
+#define PUZZ15_ROM "roms/puzz15.txt"
+#define FORTH_ROM  "roms/volks_forth.txt"
+
+
+// Forward declare the processor class
+namespace Emu
+{
+	class emu6502;
+}
+
+
 
 namespace Emu
 {
@@ -44,25 +50,51 @@ class Apple1
 public:
 									Apple1								();
 
+									~Apple1								();
+
 			int						run									();
 
 protected:
-			char					readKeyboard						();
-
 			void					mmioRegisterMonitor					();
 
 			bool					saveState							();
 
 			bool					loadState							();
 
+			void					clearScreen							();
+
+		#ifdef _WIN32
+
+			void					setUpWindows						();
+
+			char					readKeyboardWindows					();
+
+		#elif defined(__linux__)
+
+			void					setUpLinux							();
+
+			char					readKeyboardLinux					();
+
+			void					moveCursor							(const unsigned short& x, 
+																		 const unsigned short& y);
+
+			typedef struct
+			{
+				Byte X, Y;
+			}COORD;
+
+		#endif
 private:
-	Emu::emu6502 m_cpu;
-	COORD		 m_cursorPos;
+	Emu::emu6502* m_cpu;
+	COORD		  m_cursorPos;
+	bool		  m_running,
+				  m_onStartup,
+				  m_throttled;
+
+#ifdef _WIN32
 	HANDLE		 m_stdOutHandle, 
 				 m_stdInHandle;
-	bool		 m_running,
-				 m_onStartup,
-				 m_throttled;
+#endif
 };
 
 }
