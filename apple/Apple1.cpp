@@ -333,17 +333,10 @@ int Emu::Apple1::run()
         // This is how the Apple 1 monitor actually worked too so this is good emulation. F4 toggles this on and off. If off, we need to keep that bit cleared
         if (m_throttled)
         {   // the display ready flag bit should be ready about 10x a minute, so flip it every 5 hundreths of a second
-            if (displayFlagElapsed.count() >= 50)
-            {
-                Bits<Byte>::ToggleBit(m_cpu->getBus()[DISPLAY_OUTPUT_REGISTER], LastBit<Byte>);  // Toggle the last bit of the display output register. This controls whether the monitor is available or not
-                displayFlagStart = now;
-            }
-            // throttle the cpu to approximately 1000 clock cycles per second, or 100 cycles per .1 seconds
-            if (cpuElapsed.count() >= 200)
             if (displayFlagElapsed.count() > 50)
             {
                 Bits<Byte>::ToggleBit(m_cpu->getBus()[DISPLAY_OUTPUT_REGISTER], LastBit<Byte>);  // Toggle the last bit of the display output register. This controls whether the monitor is available or not
-                displayFlagStart = std::chrono::high_resolution_clock::now();
+                displayFlagStart = now;
             }
             // throttle the cpu to approximately 1000 clock cycles per second, or 100 cycles per .1 seconds
             if (cpuElapsed.count() > 200)
@@ -352,7 +345,6 @@ int Emu::Apple1::run()
                     std::this_thread::sleep_for(std::chrono::milliseconds((clockCount - 200)));
                 clockCount = 0;
                 cpuStart = now;
-                cpuStart = std::chrono::high_resolution_clock::now();
             }
         }
         else
@@ -372,7 +364,7 @@ int Emu::Apple1::run()
 
             // Reset the start time.
             start = now;
-            start = std::chrono::high_resolution_clock::now();
+            start = std::chrono::steady_clock::now();
         }
     }
 
