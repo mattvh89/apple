@@ -105,7 +105,8 @@ public:
 	// Destructor:
 	// Check if there are no more references. If true delete, otherwise
 	// dereference object
-	~smart_pointer() {
+	~smart_pointer() 
+	{
 		DEBUG_OUT("Destructor called");
 		// If reference count is 0 after decremneting
 		if (_ref_count && _data && (--(*_ref_count) == 0))
