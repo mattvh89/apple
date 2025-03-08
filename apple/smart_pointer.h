@@ -1,5 +1,7 @@
 /*	Smart Pointer template class
 *
+/*	Smart Pointer template class
+*
 * Author - Matthew Van Helden
 * Date - August 2023
 *
@@ -17,7 +19,8 @@
 
 #include <cstdint>
 #include <stdexcept>
-#include "Debug.h"
+//#include "Debug.h"
+#define DEBUG_OUT(msg) if(false) false
 
 // Macro for easier typing
 #define Ptr smart_pointer
@@ -30,13 +33,14 @@ class smart_pointer
 public:
 	// Default Constructor
 	smart_pointer()
-		: _data(nullptr), _ref_count(nullptr), _size(0)
+		: _data(nullptr), _ref_count(nullptr), _size(0), _capacity(0)
 	{
 	}
 
 	// Create null pointers
+	// Can't have a constructor tha takes a size for the array because that could be a constructor for an integer object
 	smart_pointer(bool array, const size_t& size)
-		: _data(nullptr), _ref_count(nullptr), _size(size)
+		: _data(nullptr), _ref_count(nullptr), _size(size), _capacity(size)
 	{
 		if (array)
 		{
@@ -51,32 +55,32 @@ public:
 		}
 		_ref_count = new size_t(1);
 		_data_memory += static_cast<uint64_t>(sizeof(T) * size);
-		_total_memory += static_cast<uint64_t>(sizeof(T) * size + sizeof(size_t));
+		_total_memory += static_cast<uint64_t>(sizeof(T) * size + (sizeof(size_t) << 1));
 	}
 
 	// Creating a smart_pointer with a new T argument, optional size
 	smart_pointer(T* d, const size_t& size = 1)
-		: _data(d), _ref_count(new size_t(1)), _size(size)
+		: _data(d), _ref_count(new size_t(1)), _size(size), _capacity(size - 1)
 	{
 		DEBUG_OUT("Creating Object: New T already created");
 		DEBUG_OUT("\tReferences: " << *_ref_count);
 		_data_memory += static_cast<uint64_t>(sizeof(T) * size);
-		_total_memory += static_cast<uint64_t>(sizeof(T) * size + sizeof(size_t));
+		_total_memory += static_cast<uint64_t>(sizeof(T) * size + (sizeof(size_t) << 1));
 	}
 
 	// Create smart_pointer from a regular value
 	smart_pointer(const T& t)
-		: _data(new T(t)), _ref_count(new size_t(1)), _size(1)
+		: _data(new T(t)), _ref_count(new size_t(1)), _size(1), _capacity(0)
 	{
 		DEBUG_OUT("Creating new object for user");
 		DEBUG_OUT("References: " << *_ref_count);
 		_data_memory += static_cast<uint64_t>(sizeof(T) * _size);
-		_total_memory += static_cast<uint64_t>(sizeof(T) * _size + sizeof(size_t));
+		_total_memory += static_cast<uint64_t>(sizeof(T) * _size + (sizeof(size_t) << 1));
 	}
 
 	// Copy Constructor
 	smart_pointer(const smart_pointer<T>& sp)
-		: _data(sp._data), _ref_count(sp._ref_count), _size(sp._size)
+		: _data(sp._data), _ref_count(sp._ref_count), _size(sp._size), _capacity(sp._capacity)
 	{
 		if (sp._data != nullptr)
 		{
@@ -88,7 +92,7 @@ public:
 
 	// Move Constructor
 	smart_pointer(smart_pointer<T>&& ptr)  noexcept
-		: _data(ptr._data), _ref_count(ptr._ref_count), _size(ptr._size)
+		: _data(ptr._data), _ref_count(ptr._ref_count), _size(ptr._size), _capacity(ptr._capacity)
 	{
 		if (this != &ptr)
 		{
@@ -127,7 +131,7 @@ public:
 
 			delete _ref_count;
 			_data_memory  -= static_cast<uint64_t>(sizeof(T) * _size);
-			_total_memory -= static_cast<uint64_t>(sizeof(T) * _size + sizeof(size_t));
+			_total_memory -= static_cast<uint64_t>(sizeof(T) * _size + (sizeof(size_t) << 1));
 			++_deletions;
 		}
 		else
@@ -169,8 +173,9 @@ public:
 				// extraneous information
 				++_deletions;
 				_data_memory -= static_cast<uint64_t>(sizeof(T) * _size);
-				_total_memory -= static_cast<uint64_t>(sizeof(T) * _size + sizeof(int));
+				_total_memory -= static_cast<uint64_t>(sizeof(T) * _size + (sizeof(size_t) << 1));
 			}
+			_capacity = ptr._capacity;
 			_data = ptr._data;
 			_size = ptr._size;
 			_ref_count = ptr._ref_count;
@@ -205,6 +210,7 @@ public:
 			_data_memory -= static_cast<uint64_t>(sizeof(T) * _size);
 			_total_memory -= static_cast<uint64_t>(sizeof(T) * _size + sizeof(size_t));
 			_size = 0;
+			_capacity = 0;
 			++_deletions;
 		}
 		// If other data is not set
@@ -219,6 +225,7 @@ public:
 		else
 		{
 			DEBUG_OUT("\tAssigning new data");
+			_capacity = sp._capacity;
 			_data = sp._data;
 			++(*sp._ref_count);
 			_ref_count = sp._ref_count;
@@ -235,14 +242,15 @@ public:
 	size_t increaseBy(const size_t& size)
 	{
 		// If smart pointer doesn't point to any data, allocate an array sized size
-		if (_data == nullptr)
+		if (_size == 0)
 		{
 			DEBUG_OUT("Resizing uninitialized smart pointer");
-			_data = new T[size];
+			if (size == 1)  _data = new T();
+			else		    _data = new T[size];
 			_ref_count = new size_t(1);
 			_size = size;
 			_data_memory += static_cast<uint64_t>(sizeof(T) * size);
-			_total_memory += static_cast<uint64_t>(sizeof(T) * size + sizeof(size_t));
+			_total_memory += static_cast<uint64_t>(sizeof(T) * size + (sizeof(size_t) << 1));
 		}
 		// Else smart pointer already holds data
 		else
@@ -250,16 +258,15 @@ public:
 			DEBUG_OUT("Resizing a smart pointer to an array");
 			T* temp = new T[_size + size];
 			for (size_t i = 0; i < _size; ++i)
-			{
 				*(temp + i) = *(_data + i);
-			}
-			if (_size > 1) delete[] _data;
-			else		   delete   _data;
+			if (_size == 1) delete     _data;
+			else		    delete []  _data;
 			_data = temp;
 			_size += size;
 			_data_memory += static_cast<uint64_t>(sizeof(T) * size);
 			_total_memory += static_cast<uint64_t>(sizeof(T) * size);
 		}
+		_capacity += size;
 		DEBUG_OUT("\tIncreasing by " << size);
 		return _size;
 	}
@@ -270,8 +277,19 @@ public:
 	// Gets the size of the object. 1 is a single object, anything else is an array
 	inline size_t size(void) const noexcept { return _size; }
 
+	inline size_t capacity(void) const noexcept { return _capacity; }
+
 	// Explicit function to check if _data is nullptr or points to data
 	inline bool isSet(void) const noexcept { return _data == nullptr ? false : true; }
+
+	size_t addBack(const T& t)
+	{
+		if (_capacity == 0) this->increaseBy((_size >> 1) + 1);
+		if (_size == _capacity) _data[0] = t;
+		else                   _data[_size - _capacity] = t;
+		--_capacity;
+		return _capacity;
+	}
 
 	// Static member returns the amount of memory used
 	// @param: bool total
@@ -456,7 +474,7 @@ private:
 
 	T* _data;										// The archaic pointer itself
 	size_t* _ref_count;								// Count how many refrences there are to _data
-	size_t _size;									// Determine whether it's a single object or array
+	size_t _size, _capacity;						// Determine whether it's a single object or array
 };
 
 // Static variables to keep track of accumalitve memory usage and memory usage of a single object
