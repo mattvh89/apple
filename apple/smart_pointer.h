@@ -19,8 +19,7 @@
 
 #include <cstdint>
 #include <stdexcept>
-//#include "Debug.h"
-#define DEBUG_OUT(msg) if(false) false
+#include "Debug.h"
 
 // Macro for easier typing
 #define Ptr smart_pointer
