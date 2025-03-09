@@ -1,7 +1,5 @@
 /*	Smart Pointer template class
 *
-/*	Smart Pointer template class
-*
 * Author - Matthew Van Helden
 * Date - August 2023
 *
@@ -19,7 +17,8 @@
 
 #include <cstdint>
 #include <stdexcept>
-#include "Debug.h"
+//#include "Debug.h"
+#define DEBUG_OUT(msg) if(false) false
 
 // Macro for easier typing
 #define Ptr smart_pointer
@@ -105,7 +104,7 @@ public:
 	// Destructor:
 	// Check if there are no more references. If true delete, otherwise
 	// dereference object
-	~smart_pointer() 
+	~smart_pointer()
 	{
 		DEBUG_OUT("Destructor called");
 		// If reference count is 0 after decremneting
@@ -125,12 +124,12 @@ public:
 			}
 
 			if (_size > 1)
-				delete [] _data;
+				delete[] _data;
 			else
 				delete    _data;
 
 			delete _ref_count;
-			_data_memory  -= static_cast<uint64_t>(sizeof(T) * _size);
+			_data_memory -= static_cast<uint64_t>(sizeof(T) * _size);
 			_total_memory -= static_cast<uint64_t>(sizeof(T) * _size + (sizeof(size_t) << 1));
 			++_deletions;
 		}
@@ -202,7 +201,7 @@ public:
 		if (_ref_count && --(*_ref_count) == 0)
 		{
 			DEBUG_OUT("\tDeleting lvalue");
-			if (_size > 1) delete [] _data;
+			if (_size > 1) delete[] _data;
 			else		   delete    _data;
 			delete _ref_count;
 			_data = nullptr;
@@ -260,7 +259,7 @@ public:
 			for (size_t i = 0; i < _size; ++i)
 				*(temp + i) = *(_data + i);
 			if (_size == 1) delete     _data;
-			else		    delete []  _data;
+			else		    delete[]  _data;
 			_data = temp;
 			_size += size;
 			_data_memory += static_cast<uint64_t>(sizeof(T) * size);
@@ -275,7 +274,7 @@ public:
 	inline T* data(void) const noexcept { return _data; }
 
 	// Gets the size of the object. 1 is a single object, anything else is an array
-	inline size_t size(void) const noexcept { return _size; }
+	inline size_t size(void) const noexcept { return _size - _capacity; }
 
 	inline size_t capacity(void) const noexcept { return _capacity; }
 
@@ -465,7 +464,7 @@ public:
 	// Define smart_pointer<T>::end() function to get where the array ends (_size is already last index + 1)
 	Iterator end()
 	{
-		return Iterator(_data + _size);
+		return Iterator(_data + _size - _capacity);
 	}
 
 private:
